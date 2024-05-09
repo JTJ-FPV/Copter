@@ -1,0 +1,70 @@
+#########################################################################
+# ⭐⭐⭐  Set parameters carefully for satisfied performance!   ⭐⭐⭐ #
+#########################################################################
+
+VehicleParamters:
+    m: 0.25        # 水瓶质量
+    k: 0.001        # 风阻系数只能为正数并且不能等于0
+    Max_a: 10     # m/s^2   飞机最大加速度
+    Max_v: 30     # m/s     飞机最大速度
+    g: 9.83       # 重力加速度
+    dt: 0.02      # 曲线离散化最小时间
+    Min_v_x: 8     # 机体坐标下的最小速度（大于失速）x为机头方向
+
+MultiCopterPlannerTrajectory:
+    Publish_PlannerTopic: '/planner/trajectory'
+    MultiCopterPlanner: true
+    PlannerTrajectory_frame: 'map'
+    use_MinimumJerk: true
+    PublishMinimumJerk_WayPointTopic: '/planner/minimumJerk/waypoint'
+    MultiCopterControl: false
+    Subscribe_TargetPoint_World_FLU_Topic: '/camera/target/world/point'
+    VisionControl: 2
+    FirstPoint: [0, 0, 30]
+    # MinimumJerk_WayPoint: [30, 0, 5,
+    #                         45,0 , 5,
+    #                        -100, -50, 10,
+    #                         -50, 100, 10,
+    #                        100, -50, 10,
+    #                        20, 70, 10]
+    MinimumJerk_WayPoint: [30, 0, 30,
+                            100,30 , 30,
+                           -100, -50, 40,
+                            -50, 100, 45,
+                           100, -50, 50,
+                           200, 70, 50]
+    TerminalVelocity: [0, 0, 0]
+    TerminalAccerlatation: [0, 0, 0]
+    MinimumJerk_Raduis: 1       # 飞机距离路标点的距离，若小于则更新路标点
+    use_MpcPlanner: false
+    TargetPoint: [20, 20, 0]   # 靶点位置
+
+FixedWingPlannerTrajectory:
+    use_MpcPlanner: false
+    AcroParamters_Path: '/home/jtj/CUADC/src/planner/config/fixedwingDynamic/CFD_results/'
+    Publish_PlannerTopic: '/planner/trajectory'
+    PlannerTrajectory_frame: 'map'
+    TargetPoint: [20, 20, 0]   # 靶点位置
+
+# 抛线轨迹
+ParabolaTrajectory:
+    Publish_ParabolaTrajectoryTopic: '/predict/parabola'    # 抛线轨迹话题
+    ParabolaTrajectory_frame: 'map'  # 抛线轨迹在哪个坐标系下
+    Parabola_terminal_high: 0.02     # 物体最终落点高度 单位;m
+
+# 无人机控制
+Control:
+    Control_topic: '/mavros/setpoint_raw/local'     # 控制话题
+    Control_Rate: 20        # 控制频率
+
+# 飞机姿态
+VehiclePose:
+    px4_state_topic: '/mavros/state'
+    se_custom_pose_estimate: false   # 是否使用自定义的定位源
+    use_simulation_pose: false   # 是否使用仿真的位置真值
+    gazebo_pose_topic: '/gazebo/model_states'   # gazebo仿真器中飞机位姿的真值
+    px4_odom_topic: '/mavros/odometry/in'    # 里程计数据
+    vehicle_imu_topic: '/mavros/imu/data'   # 加速度计数据
+
+# 轨迹发布频率
+Rate: 60

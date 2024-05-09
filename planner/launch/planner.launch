@@ -1,0 +1,17 @@
+<launch>
+
+<!-- 规划器 -->
+    <node pkg="planner" type="planner_demo" name="planner_demo" output="screen">
+        <rosparam file="$(find planner)/config/planner.yaml" command="load" />
+    </node>
+
+<!-- 可视化 -->
+    <!-- <node name="rviz" pkg="rviz" type="rviz" output="screen" 
+        args="-d $(find visualizer)/config/sim_plane.rviz"> 
+    </node>
+  
+    <node pkg="visualizer" type="visual_demo" name="visual_demo" >
+    <rosparam file="$(find visualizer)/config/visual.yaml" command="load" />
+    </node> -->
+
+</launch>

@@ -1,0 +1,52 @@
+<launch>
+
+    <node pkg="occupancy_grid_map" name="occ_grid_map_node" type="occ_grid_map_node" output="screen">
+
+        <remap from="~occupany_grid_map/odom" to="/iris_0/mavros/odometry/in" />
+        <remap from="~occupany_grid_map/depth" to="/iris_0/realsense/depth_camera/depth/image_raw" />
+
+        <!-- 分辨率为0.15m -->
+        <param name="occupany_grid_map/resolution" value="0.2" />
+        <!-- 占用地图大小 x为50m -->
+        <param name="occupany_grid_map/map_size_x" value="30" />
+        <!-- 占用地图大小 y为20m -->
+        <param name="occupany_grid_map/map_size_y" value="30" />
+        <!-- 占用地图大小 z为5m -->
+        <param name="occupany_grid_map/map_size_z" value="5" />
+        
+        <!-- 栅格地图膨胀率 -->
+        <param name="occupany_grid_map/obstacles_inflation" value="0.35"/>
+        <!-- 地图起始点的地平线 -->
+        <param name="occupany_grid_map/ground_heigh" value="-0.01"/>
+
+        <!-- 相机分辨率 -->
+        <param name="occupany_grid_map/cam_depth_width" value="752" />
+        <param name="occupany_grid_map/cam_depth_height" value="480" />
+        <!-- 深度相机的比例参数 -->
+        <param name="occupany_grid_map/k_depth_scaling_factor" value="1000.0" />
+        <!-- 相机内参 -->
+        <param name="occupany_grid_map/fx" value="375.9986188774177" />
+        <param name="occupany_grid_map/fy" value="375.9986188774177" />
+        <param name="occupany_grid_map/cx" value="376.0" />
+        <param name="occupany_grid_map/cy" value="240.0" />
+
+        <param name="occupany_grid_map/depth_maxdist" value="20" />
+        <param name="occupany_grid_map/depth_minidist" value="0.15" />
+        <param name="occupany_grid_map/max_ray_length" value="4" />
+
+        <param name="occupany_grid_map/depth_filter_margin" value="2" />
+        <param name="occupany_grid_map/skip_pixel" value="2" />
+
+        <!-- 占据栅格地图的最大概率0.7则认为是占据状态 -->
+        <param name="occupany_grid_map/p_occ_max" value="0.8" />
+        <!-- 占据栅格地图的最小截断概率0.12，用于初始化 -->
+        <param name="occupany_grid_map/p_occ_min" value="0.12" />
+        <!-- logit -->
+        <param name="occupany_grid_map/lofree" value="-0.1" />
+        <param name="occupany_grid_map/looccu" value="0.5" />
+
+        <param name="occupany_grid_map/frame_id" value="map" />    
+    </node>
+    
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args=""/> -->
+</launch>

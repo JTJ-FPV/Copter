@@ -1,0 +1,86 @@
+#########################################################################
+# ⭐⭐⭐  Set parameters carefully for satisfied performance!   ⭐⭐⭐ #
+#########################################################################
+
+# 机器人模型
+Robot:
+    Publish_RobotModelTopic: '/vehicle/model'
+    # RobotModel: 'file:///home/jtj/CUADC/src/visualizer/meshes/sim_plane/sim_plane_1.dae'
+    RobotModel: 'file:///home/jtj/CUADC/src/visualizer/meshes/ZD550/ZD550.dae'
+    # RobotModel: 'file:///home/jtj/CUADC/src/visualizer/meshes/tailsitter/tailsitter.dae'
+    RobotModel_ns: 'vehicle'
+    RobotModel_id: 0
+    RobotModel_frame: 'map'
+    Scale_x: 0.0005
+    Scale_y: 0.0005
+    Scale_z: 0.0005
+
+# rviz中用于跟踪显示（第一人称视角）
+Frame:
+    OriginFrame: 'map'      # 起飞点参考系（FLU）
+    VehicleFrame: 'base_link'   # 机体参考系
+# Frame:
+#     OriginFrame: 'world'      # 起飞点参考系（FLU）
+#     VehicleFrame: 'body'   # 机体参考系
+
+# 路标点，可以将规划出的离散点在rviz中可视化
+WayPoint:
+    Subscribe_WayPointTopic: '/planner/minimumJerk/waypoint'
+    Publish_WayPointTopic: '/visualizer/planner/way_point'
+    WayPoint_ns: 'way_point'
+    WayPoint_id: 0
+    WayPoint_frame: 'map'
+    Scale_x: 1
+    Scale_y: 1
+    Scale_z: 1
+    Color_r: 0.85
+    Color_g: 0.30
+    Color_b: 0.60
+    Color_a: 0.50
+    Contain: 100
+
+# 轨迹，可以在rivz中显示轨迹，本项目中将用于显示规划器规划出的轨迹
+Trajectory:
+    Subscribe_TrajectoryTopic: '/planner/trajectory'
+    Publish_TrajectoryTopic: '/visualizer/planner/trajectory'
+    Trajectory_ns: 'trajectory'
+    Trajectory_id: 0
+    Trajectory_frame: 'map'
+    Scale_x: 0.5
+    Color_r: 0.00
+    Color_g: 0.55
+    Color_b: 0.95
+    Color_a: 1
+    History_Trajectory_Marker: false
+    Contain: 8000
+
+# 抛物线预测轨迹
+PredictTrajectory:
+    Subscribe_PredictTrajectoryTopic: '/predict/parabola'
+    Publish_PredictTrajectoryTopic: 'visualizer/predict/parabola'
+    PredictTrajectory_ns: 'trajectory'
+    PredictTrajectory_id: 0
+    PredictTrajectory_frame: 'map'
+    Scale_x: 0.1
+    Color_r: 0.1
+    Color_g: 0.1
+    Color_b: 0.5
+    Color_a: 1
+    Contain: 500
+
+# 历史轨迹，本项目中将飞机的历史轨迹在rviz中显示
+HistoryTraj:
+    HistoryTrajectoryTopic: '/history/trajectory'
+    HistoryTrajectory_frame: 'map'
+    Contain: 20000
+
+# 飞机姿态
+VehiclePose:
+  use_simulation: false   # 是否使用仿真
+  use_custom_pose_estimate: false   # 是否使用自定义的定位源
+  gazebo_pose_topic: '/gazebo/model_states'   # gazebo仿真器中飞机位姿的真值
+  px4_pose_topic: '/Drone_0/mavros/local_position/pose'   # 不使用外部定位源的位姿，eg GPS，RTK(插在PX4飞控上的)
+  px4_custom_pose_estimate_topic: '/Drone_0/mavros/vision_pose/pose'    # 使用自定义的定位源，eg VINS
+
+# 可视化发布频率
+Rate: 60

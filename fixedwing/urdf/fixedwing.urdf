@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-1-g15f4949  Build Version: 1.6.7594.29634
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="fixedwing">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.0276023900571005 25.1907395653379 -0.595070899709808"
+        rpy="0 0 0" />
+      <mass
+        value="181247961.658468" />
+      <inertia
+        ixx="1352643292018.03"
+        ixy="-443617.442963247"
+        ixz="21585.6941341178"
+        iyy="5405144003863.67"
+        iyz="-19974657.0646975"
+        izz="6757755704143.24" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://fixedwing/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://fixedwing/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+</robot>

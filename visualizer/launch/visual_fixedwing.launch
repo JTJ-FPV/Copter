@@ -1,0 +1,11 @@
+<launch>
+
+   <node name="rviz" pkg="rviz" type="rviz" output="screen" 
+    args="-d $(find visualizer)/config/sim_plane.rviz"> 
+  </node>
+  
+  <node pkg="visualizer" type="visual_demo" name="visual_demo" output="screen">
+  <rosparam file="$(find visualizer)/config/visual.yaml" command="load" />
+  </node>
+
+</launch>

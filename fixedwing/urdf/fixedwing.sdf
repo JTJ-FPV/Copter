@@ -1,0 +1,36 @@
+<sdf version='1.7'>
+  <model name='fixedwing'>
+    <link name='base_link'>
+      <inertial>
+        <pose>0.027602 25.1907 -0.595071 0 -0 0</pose>
+        <mass>1.81248e+08</mass>
+        <inertia>
+          <ixx>1.35264e+12</ixx>
+          <ixy>-443617</ixy>
+          <ixz>21585.7</ixz>
+          <iyy>5.40514e+12</iyy>
+          <iyz>-1.99747e+07</iyz>
+          <izz>6.75776e+12</izz>
+        </inertia>
+      </inertial>
+      <collision name='base_link_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://fixedwing/meshes/base_link.STL</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='base_link_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>1 1 1</scale>
+            <uri>model://fixedwing/meshes/base_link.STL</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>
