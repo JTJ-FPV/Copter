@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="occupancy_grid_map" name="occ_grid_map_node" type="occ_grid_map_node" output="screen">
+    <node pkg="grid_search" name="a_star_test" type="Astar_search_test" output="screen" >
 
         <remap from="~occupany_grid_map/odom" to="/iris_0/mavros/odometry/in" />
         <remap from="~occupany_grid_map/depth" to="/iris_0/realsense/depth_camera/depth/image_raw" />
@@ -31,7 +31,7 @@
         <param name="occupany_grid_map/cy" value="240.0" />
 
         <param name="occupany_grid_map/depth_maxdist" value="20" />
-        <param name="occupany_grid_map/depth_minidist" value="0.15" />
+        <param name="occupany_grid_map/depth_minidist" value="0.1" />
         <param name="occupany_grid_map/max_ray_length" value="4" />
 
         <param name="occupany_grid_map/depth_filter_margin" value="2" />
@@ -47,6 +47,4 @@
 
         <param name="occupany_grid_map/frame_id" value="map" />    
     </node>
-    
-    <!-- <node pkg="rviz" type="rviz" name="rviz" args=""/> -->
 </launch>

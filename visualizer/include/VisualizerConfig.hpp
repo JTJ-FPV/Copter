@@ -88,6 +88,7 @@ public:
     VehiclePose vehicle_pose; 
     int Rate;
     VisualizerConfig(){};
+    ~VisualizerConfig(){};
     void getParamters(const ros::NodeHandle &nh);
 private:
     template <typename TName, typename TVal>

@@ -2,7 +2,7 @@
 
   <!-- <include file="$(find occupany_grid_map)/launch/occ_grid_map.launch"/> -->
 
-   <node name="rviz" pkg="rviz" type="rviz" output="screen" 
+   <node name="rviz" pkg="rviz" type="rviz" output="screen"
     args="-d $(find visualizer)/config/sim_copter.rviz"> 
   </node>
   

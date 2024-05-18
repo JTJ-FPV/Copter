@@ -12,7 +12,7 @@ void Map::initMap(ros::NodeHandle &nh)
     nh_.param("occupany_grid_map/map_size_y", y_size, -1.0);
     nh_.param("occupany_grid_map/map_size_z", z_size, -1.0);
     nh_.param("occupany_grid_map/obstacles_inflation", mp_.obstacles_inflation_, -1.0);
-    nh_.param("occupany_grid_map/ground_heigh", mp_.ground_height_);
+    nh_.param("occupany_grid_map/ground_height", mp_.ground_height_);
     nh_.param("occupany_grid_map/cam_depth_width", cam_.cam_depth_width_, 640);
     nh_.param("occupany_grid_map/cam_depth_height", cam_.cam_depth_height_, 480);
     nh_.param("occupany_grid_map/k_depth_scaling_factor", cam_.k_depth_scaling_factor_, -1.0);
@@ -38,6 +38,23 @@ void Map::initMap(ros::NodeHandle &nh)
     mp_.prob_max_logit_ = logit(mp_.p_occ_max_);
     mp_.prob_min_logit_ = logit(mp_.p_occ_min_);
 
+    ROS_INFO_STREAM("resolution " << mp_.resolution_);
+    ROS_INFO_STREAM("map size x " << x_size);
+    ROS_INFO_STREAM("map size y " << y_size);
+    ROS_INFO_STREAM("map size z " << z_size);
+    ROS_INFO_STREAM("obstacles inflation " << mp_.obstacles_inflation_);
+    ROS_INFO_STREAM("ground height " << mp_.ground_height_);
+    ROS_INFO_STREAM("cam depth width " << cam_.cam_depth_width_);
+    ROS_INFO_STREAM("cam depth height " << cam_.cam_depth_height_);
+    ROS_INFO_STREAM("k depth scaling factor " << cam_.k_depth_scaling_factor_);
+    ROS_INFO_STREAM("fx " << cam_.fx_);
+    ROS_INFO_STREAM("fy " << cam_.fy_);
+    ROS_INFO_STREAM("cx " << cam_.cx_);
+    ROS_INFO_STREAM("cy " << cam_.cy_);
+    ROS_INFO_STREAM("depth maxdist " << cam_.depth_maxdist_);
+    ROS_INFO_STREAM("depth minidist " << cam_.depth_minidist_);
+    ROS_INFO_STREAM("skip pixel " << cam_.skip_pixel_);
+    ROS_INFO_STREAM("frame id" << mp_.frame_id_);
     ROS_INFO_STREAM("max logit " << mp_.prob_max_logit_);
     ROS_INFO_STREAM("min logit " << mp_.prob_min_logit_);
 
@@ -48,7 +65,9 @@ void Map::initMap(ros::NodeHandle &nh)
     mp_.map_max_boundary_ = mp_.map_size_ + mp_.map_origin_;
 
     int voxel_num = mp_.map_voxel_num_(0) * mp_.map_voxel_num_(1) * mp_.map_voxel_num_(2);
+    InflateVoxel v(VoxelState::FREE, 0);
     occ_map_.occupany_map_ = std::vector<double>(voxel_num, mp_.prob_min_logit_);
+    occ_map_.occupany_map_inflate_ = std::vector<InflateVoxel>(voxel_num, v);
     occ_map_.occupany_map_inflate = std::vector<VoxelState>(voxel_num, VoxelState::FREE);
 
     cam_.proj_points_.resize(cam_.cam_depth_width_ * cam_.cam_depth_height_ / cam_.skip_pixel_ / cam_.skip_pixel_);
@@ -77,10 +96,10 @@ void Map::initMap(ros::NodeHandle &nh)
 
     mp_.occ_need_update_ = false;
     cam_.proj_points_cnt_ = 0;
-    cam_.cam2body_ << 0.0, 0.0, 1.0, 0.0,
-      -1.0, 0.0, 0.0, 0.0,
-      0.0, -1.0, 0.0, -0.02,
-      0.0, 0.0, 0.0, 1.0;
+    cam_.cam2body_ << 0.0, 0.0, 1.0, 0.035,
+                     -1.0, 0.0, 0.0, 0.0,
+                     0.0, -1.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0, 1.0;
 }
 
 void Map::projectDepthImage()
@@ -114,6 +133,7 @@ void Map::projectDepthImage()
                 proj_invaild(0) = u;
                 proj_invaild(1) = v;
                 cam_.proj_invaild_.push_back(proj_invaild);
+                // ROS_INFO_STREAM("invaild depth is " << d);
                 continue;
             }
             else if(d > cam_.depth_maxdist_)
@@ -137,7 +157,7 @@ void Map::projectDepthImage()
             // ROS_INFO_STREAM("depth : " << d);
         }
     }
-    ROS_INFO_STREAM("the size of proj_points is " << cam_.proj_points_cnt_);
+    // ROS_INFO_STREAM("the size of proj_points is " << cam_.proj_points_cnt_);
 }
 
 // 计算占用概率
@@ -157,19 +177,20 @@ void Map::occupanyProb()
             setOccupany(tmp, VoxelState::FREE);
             pos2Index(tmp, id);
             PointBound(id);
-            if(occ_map_.occupany_map_.at(toAddress(id)) >= mp_.prob_max_logit_)
-                inflatePoint(id, VoxelState::OCCUPANY);
-            else if(occ_map_.occupany_map_.at(toAddress(id)) < mp_.prob_max_logit_)// 取消膨胀
+            if(occ_map_.occupany_map_.at(toAddress(id)) < mp_.prob_max_logit_)// 取消膨胀
                 inflatePoint(id, VoxelState::FREE);
+            else if(occ_map_.occupany_map_.at(toAddress(id)) >= mp_.prob_max_logit_)
+                inflatePoint(id, VoxelState::OCCUPANY);
         }
         setOccupany(pt_w, VoxelState::OCCUPANY);
         pos2Index(pt_w, id);
         PointBound(id);
         // ROS_INFO_STREAM("the id is " << id);
-        if(occ_map_.occupany_map_.at(toAddress(id)) >= mp_.prob_max_logit_)
-            inflatePoint(id, VoxelState::OCCUPANY);
-        else if(occ_map_.occupany_map_.at(toAddress(id)) < mp_.prob_max_logit_)// 取消膨胀
+        if(occ_map_.occupany_map_.at(toAddress(id)) < mp_.prob_max_logit_)// 取消膨胀
             inflatePoint(id, VoxelState::FREE);
+        else if(occ_map_.occupany_map_.at(toAddress(id)) >= mp_.prob_max_logit_)
+            inflatePoint(id, VoxelState::OCCUPANY);
+            
     }
     // ROS_INFO("occupanyProb end");
     // setInvaildRayProb(cam_.proj_invaild_);
@@ -217,71 +238,6 @@ void Map::setRayProb(const std::vector<Eigen::Vector3d>  &ray_point)
     for(auto &p:ray_point)
         setOccupany(p, VoxelState::FREE);
 }
-
-// void Map::setInvaildRayProb(const std::vector<Eigen::Vector2i>  &ray_cam_point)
-// {
-//     Eigen::Vector3d p_w, p_diect_w, p_ray;
-//     Eigen::Vector3i id_current, id_last;
-//     bool id_sign = true;
-//     Eigen::Matrix3d camera_r = cam_.camera_q_.toRotationMatrix();
-//     // ROS_INFO_STREAM("p_ray is " << p_ray);
-//     // ROS_INFO_STREAM("the camera position is " << cam_.camera_position_);
-//     for(auto &p_c:ray_cam_point)
-//     {
-//         p_ray << cam_.camera_position_.x(), cam_.camera_position_.y(), cam_.camera_position_.z();
-//         p_w(0) = ((double)p_c(0) - cam_.cx_) / cam_.fx_;
-//         p_w(1) = ((double)p_c(1) - cam_.cy_) / cam_.fy_;
-//         p_w(2) = 1;
-//         p_diect_w = camera_r * p_w + cam_.camera_position_;
-//         p_diect_w.normalize();
-//         pos2Index(cam_.camera_position_, id_last);
-//         id_current = id_last;
-//         id_sign = true;
-//         // ROS_INFO_STREAM("isInMap(p_ray)" << isInMap(p_ray));
-//         // ROS_INFO_STREAM("loop p_ray is " << p_ray);
-//         // ROS_INFO_STREAM("the loop camera position is " << cam_.camera_position_);
-//         // ROS_INFO_STREAM("the min boundary is " << mp_.map_min_boundary_);
-//         // ROS_INFO_STREAM("the max boundary is " << mp_.map_max_boundary_);
-//         while(isInMap(p_ray))
-//         {
-//             ROS_INFO("setInvaildRayProb loop begin");
-//             if(id_sign)
-//             {
-//                 id_sign = false;
-//                 p_ray += mp_.resolution_ * p_diect_w;
-//                 if(PointBound(id_last))
-//                     break;
-
-//                 setOccupany(id_last, VoxelState::FREE);
-//                 if(occ_map_.occupany_map_.at(toAddress(id_current)) >= mp_.prob_max_logit_)
-//                     inflatePoint(id_current, VoxelState::OCCUPANY);
-//                 else if(occ_map_.occupany_map_.at(toAddress(id_current)) < mp_.prob_max_logit_) // 取消膨胀
-//                     inflatePoint(id_current, VoxelState::FREE);
-//             }
-//             else// 更新
-//             {
-//                 id_last = id_current;
-//                 p_ray += 2 * mp_.resolution_ * p_diect_w;
-//                 pos2Index(p_ray, id_current);
-//                 ROS_INFO_STREAM("id " << '\n' << id_current);
-//                 if(PointBound(id_current))
-//                     break;
-
-//                 setOccupany(id_current, VoxelState::FREE);
-//                 if(occ_map_.occupany_map_.at(toAddress(id_current)) >= mp_.prob_max_logit_)
-//                     inflatePoint(id_current, VoxelState::OCCUPANY);
-//                 else if(occ_map_.occupany_map_.at(toAddress(id_current)) < mp_.prob_max_logit_) // 取消膨胀
-//                     inflatePoint(id_current, VoxelState::FREE);
-//             }
-            
-//             if(id_current == id_last)
-//                 continue;
-
-
-//         }
-//     }
-// }
-
 
 void Map::setInvaildRayProb(const std::vector<Eigen::Vector2i>  &ray_cam_point)
 {
@@ -370,7 +326,7 @@ void Map::publishMap()
                 PointBound(id);
                 if(occ_map_.occupany_map_.at(toAddress(id)) >= mp_.prob_max_logit_)
                 {
-                    ROS_INFO_STREAM("publishMap loop");
+                    // ROS_INFO_STREAM("publishMap loop");
                     index2Pos(id, pos);
                     pt.x = pos.x();
                     pt.y = pos.y();
@@ -408,7 +364,7 @@ void Map::publishInflateMap()
             {
                 id << x, y, z;
                 PointBound(id);
-                if(occ_map_.occupany_map_inflate.at(toAddress(id)) == VoxelState::FREE)
+                if(VoxelState::FREE == occ_map_.occupany_map_inflate_.at(toAddress(id)).state)
                     continue;
                 index2Pos(id, pos);
                 pt.x = pos.x();

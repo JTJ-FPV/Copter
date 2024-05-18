@@ -46,13 +46,13 @@ Trajectory:
     Trajectory_ns: 'trajectory'
     Trajectory_id: 0
     Trajectory_frame: 'map'
-    Scale_x: 0.5
+    Scale_x: 0.05
     Color_r: 0.00
     Color_g: 0.55
     Color_b: 0.95
     Color_a: 1
     History_Trajectory_Marker: false
-    Contain: 8000
+    Contain: 5000
 
 # 抛物线预测轨迹
 PredictTrajectory:
@@ -76,11 +76,11 @@ HistoryTraj:
 
 # 飞机姿态
 VehiclePose:
-  use_simulation: false   # 是否使用仿真
+  use_simulation: false   # 是否使用gazebo仿真的定位源
   use_custom_pose_estimate: false   # 是否使用自定义的定位源
   gazebo_pose_topic: '/gazebo/model_states'   # gazebo仿真器中飞机位姿的真值
-  px4_pose_topic: '/Drone_0/mavros/local_position/pose'   # 不使用外部定位源的位姿，eg GPS，RTK(插在PX4飞控上的)
-  px4_custom_pose_estimate_topic: '/Drone_0/mavros/vision_pose/pose'    # 使用自定义的定位源，eg VINS
+  px4_pose_topic: '/iris_0/mavros/local_position/pose'   # 不使用外部定位源的位姿，eg GPS，RTK(插在PX4飞控上的)
+  px4_custom_pose_estimate_topic: '/iris_0/mavros/vision_pose/pose'    # 使用自定义的定位源，eg VINS
 
 # 可视化发布频率
 Rate: 60

@@ -2,8 +2,8 @@
 
 #include <ros/ros.h>
 #include <ros/console.h>
-#include <Eigen/Eigen>
-#include "occupancy_grid_map/occ_grid_map.h"
+#include <occupancy_grid_map/occ_grid_map.h>
+// #include "occupancy_grid_map/occ_grid_map.h"
 #include "node.h"
 
 // debug
@@ -11,16 +11,25 @@
 
 namespace CUADC{
 
+enum AstarHeu
+{
+    DIALOG=0u,
+    EUCLIDEAN=1u,
+    MANHATTAN=2u,
+    DIALOG_TIEBREAKER=3u,
+    EUCLIDEAN_TIEBREAKER=4u,
+    MANHATTAN_TIEBREAKER=5u
+};
+
 class AstarPathFinder
 {
 protected:
-    const MapPtr map_;  // read only
     GridNodePtr *** GridNodeMap_;   // 地图
     Eigen::Vector3i goalIdx_;
     Eigen::Vector3i startIdx_;
     Eigen::Vector3d start_pt_;  // 起始点
 
-    GridNodePtr terminatePtr_;
+    GridNodePtr terminatePtr_;  
 
 
     std::multimap<double, GridNodePtr> openSet_;
@@ -41,13 +50,30 @@ protected:
 
     inline void AstarGetSucc(GridNodePtr currentPtr, std::vector<GridNodePtr> & neighborPtrSets, std::vector<double> & edgeCostSets);		
 
-    inline void resetGridMap(GridNodePtr *** GridNodeMap, std::vector<Eigen::Vector3i> &expanded);
+    inline void resetGridMap(GridNodePtr *** GridNodeMap, std::vector<Eigen::Vector3i> &visited);
 
-    Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i & index);
-    Eigen::Vector3i coord2gridIndex(const Eigen::Vector3d & pt);
-
+    inline double perpendicularDistance(const Eigen::Vector3d &p, const Eigen::Vector3d &start, const Eigen::Vector3d &end);
 public:
-    AstarPathFinder(const MapPtr map_ptr):map_(map_ptr){
+    // AstarPathFinder(const MapPtr map_ptr):map_(map_ptr){
+    //     Eigen::Vector3d pos;
+    //     GridNodeMap_ = new GridNodePtr ** [map_ptr->mp_.map_voxel_num_.x()];
+    //     for(int i = 0; i < map_ptr->mp_.map_voxel_num_.x(); ++i){
+    //         GridNodeMap_[i] = new GridNodePtr * [map_ptr->mp_.map_voxel_num_.y()];
+    //         for(int j = 0; j < map_ptr->mp_.map_voxel_num_.y(); ++j){
+    //             GridNodeMap_[i][j] = new GridNodePtr [map_ptr->mp_.map_voxel_num_.z()];
+    //             for(int k = 0; k < map_ptr->mp_.map_voxel_num_.z(); ++k){
+    //                 Eigen::Vector3i tmpIdx(i, j, k);
+    //                 map_ptr->index2Pos(tmpIdx, pos);
+    //                 GridNodeMap_[i][j][k] = new GridNode(tmpIdx, pos);
+    //             }
+    //         }
+    //     }
+    // };
+    AstarPathFinder(){};
+    ~AstarPathFinder(){};
+
+    void initAstarPathFinder(const MapPtr map_ptr){
+        map_ = map_ptr;
         Eigen::Vector3d pos;
         GridNodeMap_ = new GridNodePtr ** [map_ptr->mp_.map_voxel_num_.x()];
         for(int i = 0; i < map_ptr->mp_.map_voxel_num_.x(); ++i){
@@ -62,27 +88,16 @@ public:
             }
         }
     };
-    ~AstarPathFinder(){};
-    // 对角距离启发函数
-    void AstarGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
-    // 欧式距离启发函数
-    void AstarGraphSearchOfEuclidean(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
-    // 曼哈顿距离启发函数
-    void AstarGraphSearchOfManhattan(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
+    // Astar
+    void AstarGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, AstarHeu function);
 
-    // 使用Tie Breaker启发函数的A*算法
-    // 对角距离启发函数
-    void AstarGraphSearchTieBreaker(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
-    // 欧式距离启发函数
-    void AstarGraphSearchOfEuclideanTieBreaker(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
-    // 曼哈顿距离启发函数
-    void AstarGraphSearchOfManhattanTieBreaker(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
+    void getPath(std::vector<Eigen::Vector3d> &path);
 
+    void rdpPath(std::vector<Eigen::Vector3d> &path, double epsilon, std::vector<Eigen::Vector3d> &simplified);
 
-    Eigen::Vector3d coordRounding(const Eigen::Vector3d & coord);
-    std::vector<Eigen::Vector3d> getPath();
-    std::vector<Eigen::Vector3d> getVisitedNodes();
-    std::vector<Eigen::Vector3i> expanded_;     // 被扩展过的节点
+    std::vector<Eigen::Vector3i> visited_;     // 被访问过的节点
+
+    MapPtr map_;  
 };
 
 } // namespace CUADC

@@ -1,0 +1,24 @@
+#########################################################################
+# ⭐⭐⭐  Set parameters carefully for satisfied performance!   ⭐⭐⭐ #
+#########################################################################
+MultiCopter:
+    max_vel: 25
+    max_acc: 10
+    hover_height: 1
+
+Replan:
+    target_replan_thresh: 2
+    start_replan_thresh: 2
+    replan_time: 1
+    dt: 0.02 
+
+Publish_Replan:
+    Publish_AstarPath: '/a_star/path'
+    Publish_RdpPath: '/rdp/path'
+    Publish_MinimJerkPath: '/planner/trajectory'
+    Publish_Control: '/iris_0/mavros/setpoint_raw/local'
+
+Subscribe_Replan:
+    Subscribe_State: '/iris_0/mavros/state'
+    Subscribe_Odometry: '/iris_0/mavros/odometry/in'
+    Subscribe_Imu: '/iris_0/mavros/imu/data'

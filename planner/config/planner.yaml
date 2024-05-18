@@ -60,7 +60,7 @@ Control:
 # 飞机姿态
 VehiclePose:
     px4_state_topic: '/mavros/state'
-    se_custom_pose_estimate: false   # 是否使用自定义的定位源
+    # se_custom_pose_estimate: true   # 是否使用自定义的定位源
     use_simulation_pose: false   # 是否使用仿真的位置真值
     gazebo_pose_topic: '/gazebo/model_states'   # gazebo仿真器中飞机位姿的真值
     px4_odom_topic: '/mavros/odometry/in'    # 里程计数据

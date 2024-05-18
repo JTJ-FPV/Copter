@@ -27,6 +27,12 @@ enum VoxelState{
     OCCUPANY=1u
 };
 
+struct InflateVoxel
+{
+    VoxelState state = VoxelState::FREE;
+    uint32_t count = 0;
+    InflateVoxel(VoxelState s, uint32_t c):state(s), count(c){};
+};
 
 double logit(double x)
 {
@@ -99,6 +105,7 @@ struct OccupanyGridMap
 {
     std::vector<double> occupany_map_;      // 原始栅格占用地图，用后验概率表示，当大于0.5时认为被占用
     std::vector<VoxelState> occupany_map_inflate;     // 膨胀地图，1代表占用，0代表空闲
+    std::vector<InflateVoxel> occupany_map_inflate_;     // 膨胀地图，1代表占用，0代表空闲
 };
 
 class Map
@@ -119,9 +126,13 @@ public:
 
     inline bool isInMap(const Eigen::Vector3d& pos);
     
+    inline bool PointBound(Eigen::Vector3i& id);
+
     VoxelState isOccupied(const Eigen::Vector3i& id){
-        return occ_map_.occupany_map_inflate.at(toAddress(id));
+        return occ_map_.occupany_map_inflate_.at(toAddress(id)).state;
     }
+
+    double getCamMaxRayLength(){return cam_.max_ray_length_;}
 private:
 
     void projectDepthImage();
@@ -137,8 +148,6 @@ private:
     inline void setOccupany(const Eigen::Vector3i &id, VoxelState state);
 
     inline void inflatePoint(const Eigen::Vector3i& pt, VoxelState state);
-
-    inline bool PointBound(Eigen::Vector3i& id);
 
     void raycast(const Eigen::Vector3d &start, const Eigen::Vector3d &end, std::vector<Eigen::Vector3d> &ray);
 
@@ -192,7 +201,7 @@ inline void Map::pos2Index(const Eigen::Vector3d &pos, Eigen::Vector3i &id){
 }
 
 inline void Map::index2Pos(const Eigen::Vector3i& id, Eigen::Vector3d& pos) {
-  for (int i = 0; i < 3; ++i) pos(i) = (id(i) + 0.5) * mp_.resolution_ + mp_.map_origin_(i);
+  for (int i = 0; i < 3; ++i) pos(i) = ((double)id(i) + 0.5) * mp_.resolution_ + mp_.map_origin_(i);
 }
 
 inline bool Map::isInMap(const Eigen::Vector3d& pos) {
@@ -251,7 +260,12 @@ inline void Map::setOccupany(const Eigen::Vector3i &id, VoxelState state)
 inline void Map::inflatePoint(const Eigen::Vector3i& pt, VoxelState state)
 {
     // ROS_INFO("inflatePoint begin");
-    int num = 0;
+    if(VoxelState::FREE == state)
+    {
+        occ_map_.occupany_map_inflate_.at(toAddress(pt)).state = VoxelState::FREE;
+        return;
+    }
+
     Eigen::Vector3i id;
     int inf_step = ceil(mp_.obstacles_inflation_ * mp_.resolution_inv_);
     for (int x = -inf_step; x <= inf_step; ++x)
@@ -259,7 +273,22 @@ inline void Map::inflatePoint(const Eigen::Vector3i& pt, VoxelState state)
             for (int z = -inf_step; z <= inf_step; ++z) {
                 id << pt(0) + x, pt(1) + y, pt(2) + z;
                 PointBound(id);
-                occ_map_.occupany_map_inflate.at(toAddress(id)) = state;
+                // if(VoxelState::FREE == state)
+                // {
+                //     if(occ_map_.occupany_map_inflate_.at(toAddress(id)).count > 1)
+                //         occ_map_.occupany_map_inflate_.at(toAddress(id)).count--;
+                //     else
+                //     {
+                //         occ_map_.occupany_map_inflate_.at(toAddress(id)).count = 0;
+                //         occ_map_.occupany_map_inflate_.at(toAddress(id)).state = VoxelState::FREE;
+                //     }
+                // }
+                // else
+                // {
+                //     occ_map_.occupany_map_inflate_.at(toAddress(id)).count++;
+                    occ_map_.occupany_map_inflate_.at(toAddress(id)).state = VoxelState::OCCUPANY;
+                // }
+                // occ_map_.occupany_map_inflate.at(toAddress(id)) = state;
                 // ROS_INFO_STREAM("inflatePoint point is " << toAddress(id));
             }
     // ROS_INFO("inflatePoint end");

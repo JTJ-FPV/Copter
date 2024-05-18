@@ -1,6 +1,8 @@
 <launch>
 
-    <node pkg="occupancy_grid_map" name="occ_grid_map_node" type="occ_grid_map_node" output="screen">
+    <node pkg="plan_manage" name="plan_fsm_node" type="plan_fsm_node" output="screen" launch-prefix="gdb -ex run --args">
+
+        <rosparam file="$(find plan_manage)/config/fsm.yaml" command="load" />
 
         <remap from="~occupany_grid_map/odom" to="/iris_0/mavros/odometry/in" />
         <remap from="~occupany_grid_map/depth" to="/iris_0/realsense/depth_camera/depth/image_raw" />
@@ -8,14 +10,14 @@
         <!-- 分辨率为0.2m -->
         <param name="occupany_grid_map/resolution" value="0.2" />
         <!-- 占用地图大小 x为50m -->
-        <param name="occupany_grid_map/map_size_x" value="30" />
+        <param name="occupany_grid_map/map_size_x" value="40" />
         <!-- 占用地图大小 y为20m -->
-        <param name="occupany_grid_map/map_size_y" value="30" />
+        <param name="occupany_grid_map/map_size_y" value="40" />
         <!-- 占用地图大小 z为5m -->
-        <param name="occupany_grid_map/map_size_z" value="5" />
+        <param name="occupany_grid_map/map_size_z" value="6" />
         
         <!-- 栅格地图膨胀率 -->
-        <param name="occupany_grid_map/obstacles_inflation" value="0.35"/>
+        <param name="occupany_grid_map/obstacles_inflation" value="0.15"/>
         <!-- 地图起始点的地平线 -->
         <param name="occupany_grid_map/ground_height" value="-0.01"/>
 
@@ -31,7 +33,7 @@
         <param name="occupany_grid_map/cy" value="240.0" />
 
         <param name="occupany_grid_map/depth_maxdist" value="20" />
-        <param name="occupany_grid_map/depth_minidist" value="0.15" />
+        <param name="occupany_grid_map/depth_minidist" value="0.1" />
         <param name="occupany_grid_map/max_ray_length" value="4" />
 
         <param name="occupany_grid_map/depth_filter_margin" value="2" />
@@ -47,6 +49,4 @@
 
         <param name="occupany_grid_map/frame_id" value="map" />    
     </node>
-    
-    <!-- <node pkg="rviz" type="rviz" name="rviz" args=""/> -->
 </launch>

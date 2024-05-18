@@ -1,12 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(visualizer)
+project(trajectory_gen)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-
-# SET(CMAKE_BUILD_TYPE "Debug")
-# SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-# SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
 set(CMAKE_BUILD_TYPE "Release")
 ADD_COMPILE_OPTIONS(-std=c++11 )
@@ -22,12 +18,14 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   image_transport
   mavros_msgs
-  roscpp
-  tf
   nav_msgs
-  visualization_msgs
+  roscpp
+  sensor_msgs
+  tf
   trajectory_msgs
 )
+
+find_package(Eigen3 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -86,7 +84,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   gazebo_msgs#   geometry_msgs#   mavros_msgs#   visualization_msgs
+#   gazebo_msgs#   geometry_msgs#   mavros_msgs#   nav_msgs#   sensor_msgs#   trajectory_msgs
 # )
 
 ################################################
@@ -119,9 +117,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES visualizer
- CATKIN_DEPENDS cv_bridge gazebo_msgs geometry_msgs image_transport mavros_msgs roscpp tf nav_msgs visualization_msgs trajectory_msgs
+ INCLUDE_DIRS include
+ LIBRARIES trajectory_gen
+ CATKIN_DEPENDS cv_bridge gazebo_msgs geometry_msgs image_transport mavros_msgs nav_msgs roscpp sensor_msgs tf trajectory_msgs
 #  DEPENDS system_lib
 )
 
@@ -132,15 +130,21 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-include
-  ${catkin_INCLUDE_DIRS}
+  SYSTEM
+  include
+  ${catkin_INCLUDE_DIRS} 
   "/usr/include/eigen3"
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/visualizer.cpp
-# )
+add_library(trajectory_gen
+  src/minimumJerk.cpp
+)
+
+target_link_libraries(trajectory_gen
+  ${catkin_LIBRARIES}
+  ${Eigen3_LIBRARIES}
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -150,9 +154,7 @@ include
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/visualizer_node.cpp)
-add_executable(visual_demo src/visual_demo.cpp)
-add_executable(test_rotation src/test_rotation.cpp)
+# add_executable(${PROJECT_NAME}_node src/trajectory_gen_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -168,13 +170,6 @@ add_executable(test_rotation src/test_rotation.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(visual_demo
-  ${catkin_LIBRARIES}
-)
-
-target_link_libraries(test_rotation
-  ${catkin_LIBRARIES}
-)
 
 #############
 ## Install ##
@@ -223,7 +218,7 @@ target_link_libraries(test_rotation
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_visualizer.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_trajectory_gen.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

@@ -25,7 +25,7 @@ find_package(PCL 1.7 REQUIRED)
 
 catkin_package(
  INCLUDE_DIRS include
- LIBRARIES occupany_grid_map
+ LIBRARIES occupancy_grid_map
  CATKIN_DEPENDS cv_bridge message_filters roscpp rospy std_msgs visualization_msgs
 #  DEPENDS system_lib
 )
@@ -47,14 +47,15 @@ include_directories(
 
 link_directories(${PCL_LIBRARY_DIRS})
 
-add_library(occu_grid_map
+add_library(occupancy_grid_map
   src/occ_grid_map.cpp
   src/raycast.cpp
 )
 
-target_link_libraries(occu_grid_map
+target_link_libraries(occupancy_grid_map
   ${catkin_LIBRARIES} 
   ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 
@@ -63,7 +64,7 @@ add_executable(occ_grid_map_node src/occ_grid_map_node.cpp)
 
 target_link_libraries(occ_grid_map_node
   ${catkin_LIBRARIES}
-  occu_grid_map
+  occupancy_grid_map
 )
 
 # add_dependencies(occupany_grid_map_node ${catkin_EXPORTED_TARGETS})
