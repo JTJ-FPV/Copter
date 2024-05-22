@@ -14,6 +14,7 @@ Replan:
 
 Publish_Replan:
     Publish_AstarPath: '/a_star/path'
+    Publish_Replan_AstarPath: '/replan/a_star/path'
     Publish_RdpPath: '/rdp/path'
     Publish_MinimJerkPath: '/planner/trajectory'
     Publish_Control: '/iris_0/mavros/setpoint_raw/local'

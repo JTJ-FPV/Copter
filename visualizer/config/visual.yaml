@@ -19,6 +19,7 @@ Robot:
 Frame:
     OriginFrame: 'map'      # 起飞点参考系（FLU）
     VehicleFrame: 'base_link'   # 机体参考系
+    useFPV: true
 # Frame:
 #     OriginFrame: 'world'      # 起飞点参考系（FLU）
 #     VehicleFrame: 'body'   # 机体参考系
@@ -79,8 +80,8 @@ VehiclePose:
   use_simulation: false   # 是否使用gazebo仿真的定位源
   use_custom_pose_estimate: false   # 是否使用自定义的定位源
   gazebo_pose_topic: '/gazebo/model_states'   # gazebo仿真器中飞机位姿的真值
-  px4_pose_topic: '/iris_0/mavros/local_position/pose'   # 不使用外部定位源的位姿，eg GPS，RTK(插在PX4飞控上的)
-  px4_custom_pose_estimate_topic: '/iris_0/mavros/vision_pose/pose'    # 使用自定义的定位源，eg VINS
+  px4_pose_topic: '/Drone_1/mavros/local_position/pose'   # 不使用外部定位源的位姿，eg GPS，RTK(插在PX4飞控上的)
+  px4_custom_pose_estimate_topic: '/Drone_1/mavros/vision_pose/pose'    # 使用自定义的定位源，eg VINS
 
 # 可视化发布频率
 Rate: 60

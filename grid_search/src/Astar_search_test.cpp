@@ -20,6 +20,7 @@
 // CUADC::Map map;
 CUADC::MapPtr map_ptr;
 CUADC::AstarPathFinder * astar_ptr;
+CUADC::AstarPathFinder astar;
 
 ros::Publisher path_pub;
 ros::Publisher path_pub_;
@@ -81,17 +82,33 @@ void targetCallback(const geometry_msgs::PoseStampedConstPtr &targ)
     target << targ->pose.position.x, targ->pose.position.y, targ->pose.position.z;
     Eigen::Vector3i target_idx;
     astar_ptr->map_->pos2Index(target, target_idx);
+    if(!astar_ptr->map_->isInMap(target))
+    {
+        ROS_WARN("the target is not in map!");
+        return;
+    }
     if(astar_ptr->map_->isOccupied(target_idx) == CUADC::VoxelState::OCCUPANY)
     {    
         ROS_WARN("the target is occupancied!");
         return;
     }
     ROS_INFO_STREAM("the target point is " << '\n' << target);
+    if(!astar_ptr->map_->isInMap(start))
+    {
+        ROS_WARN("A* start point is not in map !!!");
+        return;
+    }
     astar_ptr->AstarGraphSearch(start, target, CUADC::AstarHeu::DIALOG_TIEBREAKER);
     astar_ptr->getPath(path);
+    if(path.size() == 0)
+    {
+        ROS_INFO("A* search failed!");
+        return;
+    }
     visGridPath(path);
     std::vector<Eigen::Vector3d> rdp_path;
-    astar_ptr->rdpPath(path, 0.3, rdp_path);
+    astar_ptr->simplifyPath(path, rdp_path);
+    // astar_ptr->rdpPath(path, 0.3, rdp_path);
     publishPath(rdp_path);
     ROS_INFO("find path");
     ROS_INFO_STREAM("the A* path size is " << path.size());
@@ -131,13 +148,14 @@ int main(int argc, char **argv)
     ros::Subscriber target_sub = nh.subscribe<geometry_msgs::PoseStamped>("/goal", 1, targetCallback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber odom_sub = nh.subscribe<nav_msgs::Odometry>("/iris_0/mavros/odometry/in", 1, odomCallback, ros::TransportHints().tcpNoDelay());
     path_pub = nh.advertise<visualization_msgs::Marker>("a_star_path", 100);
-    path_pub_ = nh.advertise<sensor_msgs::PointCloud2>("path_cloud", 100);
+    path_pub_ = nh.advertise<sensor_msgs::PointCloud2>("simplify_path", 100);
     CUADC::Map map;
     map.initMap(nh);
     map_ptr = &map;
 
-    astar_ptr = new CUADC::AstarPathFinder();
-    astar_ptr->initAstarPathFinder(&map);
+    astar.initAstarPathFinder(map_ptr);
+
+    astar_ptr = &astar;
 
 
     ros::spin();

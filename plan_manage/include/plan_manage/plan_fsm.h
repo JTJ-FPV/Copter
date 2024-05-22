@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include <ros/ros.h>
 // 前端轨迹搜索
 #include <grid_search/Astar_search.h>
@@ -26,6 +28,9 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+
 namespace CUADC{
 
 class PlanFSM
@@ -44,7 +49,7 @@ private:
     bool FSM[6]={false, false, false, false, false, false};
 
     TrajectoryGen trajectory_gen_, trajectory_replan_gen_;
-    AstarPathFinder astar_finder_;/*, astar_replan_finder_;*/
+    AstarPathFinder astar_finder_;
     std::vector<Eigen::Vector3d> astar_path_, rdp_path_, astar_replan_path_, rdp_replan_path_;
     Map map;
 
@@ -54,6 +59,7 @@ private:
     ros::NodeHandle nh_;
     // publisher
     ros::Publisher aster_path_pub_;
+    ros::Publisher replan_aster_path_pub_;
     ros::Publisher rdp_path_pub_;
     ros::Publisher jerk_traj_pub_;
     ros::Publisher control_pub_;
@@ -66,6 +72,8 @@ private:
     
     // 机体位姿
     geometry_msgs::Pose vehicle_pose_; Eigen::Vector3d _vehicle_pose_, euler_angle_; Eigen::Quaterniond vehicle_q_;  bool has_odom_;
+    // YAW
+    double yaw_;
     // 规划的起始位置
     Eigen::Vector3d start_pt_; Eigen::Vector3i start_idx_;
     // 目标点
@@ -106,6 +114,7 @@ private:
 
     // 可视化
     void publishAstarPath();
+    void publishReplanAstarPath();
     void publishRdpPath();
     void publishTrajectory();
 

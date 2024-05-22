@@ -22,6 +22,7 @@ public:
     {
         std::string OriginFrame;
         std::string VehicleFrame;
+        bool useFPV;
     };
     
     struct WayPoint
@@ -119,6 +120,7 @@ void VisualizerConfig::getParamters(const ros::NodeHandle &nh)
 
     nh.getParam("Frame/OriginFrame", frame.OriginFrame);
     nh.getParam("Frame/VehicleFrame", frame.VehicleFrame);
+    nh.getParam("Frame/useFPV", frame.useFPV);
 
     nh.getParam("WayPoint/Subscribe_WayPointTopic", waypoint.Subscribe_WayPointTopic);
     nh.getParam("WayPoint/Publish_WayPointTopic", waypoint.Publish_WayPointTopic);

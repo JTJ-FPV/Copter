@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="plan_manage" name="plan_fsm_node" type="plan_fsm_node" output="screen" launch-prefix="gdb -ex run --args">
+    <node pkg="plan_manage" name="plan_fsm_node" type="plan_fsm_node" output="screen">
 
         <rosparam file="$(find plan_manage)/config/fsm.yaml" command="load" />
 
@@ -17,7 +17,7 @@
         <param name="occupany_grid_map/map_size_z" value="6" />
         
         <!-- 栅格地图膨胀率 -->
-        <param name="occupany_grid_map/obstacles_inflation" value="0.15"/>
+        <param name="occupany_grid_map/obstacles_inflation" value="0.25"/>
         <!-- 地图起始点的地平线 -->
         <param name="occupany_grid_map/ground_height" value="-0.01"/>
 
@@ -33,19 +33,19 @@
         <param name="occupany_grid_map/cy" value="240.0" />
 
         <param name="occupany_grid_map/depth_maxdist" value="20" />
-        <param name="occupany_grid_map/depth_minidist" value="0.1" />
+        <param name="occupany_grid_map/depth_minidist" value="0.01" />
         <param name="occupany_grid_map/max_ray_length" value="4" />
 
         <param name="occupany_grid_map/depth_filter_margin" value="2" />
         <param name="occupany_grid_map/skip_pixel" value="2" />
 
         <!-- 占据栅格地图的最大概率0.7则认为是占据状态 -->
-        <param name="occupany_grid_map/p_occ_max" value="0.8" />
+        <param name="occupany_grid_map/p_occ_max" value="0.85" />
         <!-- 占据栅格地图的最小截断概率0.12，用于初始化 -->
         <param name="occupany_grid_map/p_occ_min" value="0.12" />
         <!-- logit -->
-        <param name="occupany_grid_map/lofree" value="-0.25" />
-        <param name="occupany_grid_map/looccu" value="0.55" />
+        <param name="occupany_grid_map/lofree" value="-0.15" />
+        <param name="occupany_grid_map/looccu" value="0.75" />
 
         <param name="occupany_grid_map/frame_id" value="map" />    
     </node>

@@ -1,6 +1,6 @@
 <launch>
 
-    <node pkg="grid_search" name="a_star_test" type="Astar_search_test" output="screen" >
+    <node pkg="grid_search" name="a_star_test" type="Astar_search_test" output="screen">
 
         <remap from="~occupany_grid_map/odom" to="/iris_0/mavros/odometry/in" />
         <remap from="~occupany_grid_map/depth" to="/iris_0/realsense/depth_camera/depth/image_raw" />

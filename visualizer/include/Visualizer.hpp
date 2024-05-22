@@ -200,7 +200,8 @@ void Visualizer::Init_paramters()
     history_traj.header.frame_id = config.history_traj.HistoryTrajectory_frame;
 
      /* 第一视角 */
-    FPV = nh.createTimer(ros::Duration(ros::Rate(config.Rate)), &Visualizer::FPVCallback, this);
+    if(config.frame.useFPV)
+        FPV = nh.createTimer(ros::Duration(ros::Rate(config.Rate)), &Visualizer::FPVCallback, this);
 }
 
 void Visualizer::simGazeboPoseCallback(const gazebo_msgs::ModelStatesConstPtr &msg)

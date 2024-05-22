@@ -3,7 +3,6 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <occupancy_grid_map/occ_grid_map.h>
-// #include "occupancy_grid_map/occ_grid_map.h"
 #include "node.h"
 
 // debug
@@ -54,21 +53,6 @@ protected:
 
     inline double perpendicularDistance(const Eigen::Vector3d &p, const Eigen::Vector3d &start, const Eigen::Vector3d &end);
 public:
-    // AstarPathFinder(const MapPtr map_ptr):map_(map_ptr){
-    //     Eigen::Vector3d pos;
-    //     GridNodeMap_ = new GridNodePtr ** [map_ptr->mp_.map_voxel_num_.x()];
-    //     for(int i = 0; i < map_ptr->mp_.map_voxel_num_.x(); ++i){
-    //         GridNodeMap_[i] = new GridNodePtr * [map_ptr->mp_.map_voxel_num_.y()];
-    //         for(int j = 0; j < map_ptr->mp_.map_voxel_num_.y(); ++j){
-    //             GridNodeMap_[i][j] = new GridNodePtr [map_ptr->mp_.map_voxel_num_.z()];
-    //             for(int k = 0; k < map_ptr->mp_.map_voxel_num_.z(); ++k){
-    //                 Eigen::Vector3i tmpIdx(i, j, k);
-    //                 map_ptr->index2Pos(tmpIdx, pos);
-    //                 GridNodeMap_[i][j][k] = new GridNode(tmpIdx, pos);
-    //             }
-    //         }
-    //     }
-    // };
     AstarPathFinder(){};
     ~AstarPathFinder(){};
 
@@ -94,6 +78,8 @@ public:
     void getPath(std::vector<Eigen::Vector3d> &path);
 
     void rdpPath(std::vector<Eigen::Vector3d> &path, double epsilon, std::vector<Eigen::Vector3d> &simplified);
+
+    void simplifyPath(std::vector<Eigen::Vector3d> &path, std::vector<Eigen::Vector3d> &simplify);
 
     std::vector<Eigen::Vector3i> visited_;     // 被访问过的节点
 

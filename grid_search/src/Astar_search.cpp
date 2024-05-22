@@ -427,4 +427,51 @@ inline double AstarPathFinder::perpendicularDistance(const Eigen::Vector3d &p, c
     Eigen::Vector3d sp = p - start;
     return sp.cross(se).norm(); // 叉乘
 }
+void AstarPathFinder::simplifyPath(std::vector<Eigen::Vector3d> &path, std::vector<Eigen::Vector3d> &simplify)
+{
+    simplify.clear();
+    Eigen::Vector3d current_pt, last_pt, tmp, simp_last_pt;
+    bool sign = false;
+    // double ds = 0.02, dist = 0;
+    double ds = map_->mp_.resolution_ / 2, dist = 0;
+    uint32_t count = 0, sum = 0;
+    Eigen::Vector3i tmp_idx;
+    for(auto p:path)
+    {
+        if(!sign)
+        {
+            current_pt = p;
+            last_pt = p;
+            simp_last_pt = p;
+            simplify.push_back(p);
+            sign = true;
+            continue;
+        }
+        else
+        {
+            last_pt = current_pt;
+            current_pt = p;
+        }
+        // 碰撞检测
+        dist = (current_pt - simp_last_pt).norm();
+        sum = std::floor(dist / ds);
+        count = 0;
+        while(count <= sum)
+        {
+            tmp = simp_last_pt + (count * ds) * (current_pt - simp_last_pt) / dist;
+            map_->pos2Index(tmp, tmp_idx);
+            if(VoxelState::OCCUPANY == map_->isOccupied(tmp_idx))
+            {
+                simp_last_pt = last_pt;
+                simplify.push_back(last_pt);
+                break; 
+            }
+            count++;
+        }
+    }
+    if(simplify.size() == 1 || simplify.at(simplify.size() - 1) != path.at(path.size() - 1))
+    {
+        simplify.push_back(path.at(path.size() - 1));
+    }
+}
 } // namespace CUADC

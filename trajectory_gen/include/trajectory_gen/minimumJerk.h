@@ -26,6 +26,25 @@ public:
         ROS_INFO_STREAM("sum time is " << sum);
         return sum;
     }
+    inline bool hasNan(const Eigen::MatrixXd& matrix){
+        return matrix.unaryExpr([](double v){ return std::isnan(v); }).any();
+    }
+    void operator= (const TrajectoryGen &r){
+        this->acc_ = r.acc_;
+        this->vel_ = r.vel_;
+        this->piece_num_ = r.piece_num_;
+        this->time_ = r.time_;
+        this->waypoint_ = r.waypoint_;
+        this->initialPos_ = r.initialPos_;
+        this->initialVel_ = r.initialVel_;
+        this->initialAcc_ = r.initialAcc_;
+        this->terminalPos_ = r.terminalPos_;
+        this->terminalVel_ = r.terminalVel_;
+        this->terminalAcc_ = r.terminalAcc_;
+        this->intermediatePositions_ = r.intermediatePositions_;
+        this->timeAllocationVector_ = r.timeAllocationVector_;
+        this->coefficientMatrix_ = r.coefficientMatrix_;
+    }
 protected:
     double acc_;
     double vel_;

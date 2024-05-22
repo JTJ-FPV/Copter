@@ -27,6 +27,7 @@ public:
     struct Publish_Replan
     {
         std::string Publish_AstarPath;
+        std::string Publish_Replan_AstarPath;
         std::string Publish_RdpPath;
         std::string Publish_MinimJerkPath;
         std::string Publish_Control;
@@ -75,10 +76,11 @@ void RePlanConfig::getParamters(const ros::NodeHandle &nh)
     read_essential_param(nh, "Replan/dt", replan.dt);
 
     read_essential_param(nh, "Publish_Replan/Publish_AstarPath", publish_replan.Publish_AstarPath);
+    read_essential_param(nh, "Publish_Replan/Publish_Replan_AstarPath", publish_replan.Publish_Replan_AstarPath);
     read_essential_param(nh, "Publish_Replan/Publish_RdpPath", publish_replan.Publish_RdpPath);
     read_essential_param(nh, "Publish_Replan/Publish_MinimJerkPath", publish_replan.Publish_MinimJerkPath);
     read_essential_param(nh, "Publish_Replan/Publish_Control", publish_replan.Publish_Control);
-
+    
     read_essential_param(nh, "Subscribe_Replan/Subscribe_State", subscribe_replan.Subscribe_State);
     read_essential_param(nh, "Subscribe_Replan/Subscribe_Odometry", subscribe_replan.Subscribe_Odometry);
     read_essential_param(nh, "Subscribe_Replan/Subscribe_Imu", subscribe_replan.Subscribe_Imu);

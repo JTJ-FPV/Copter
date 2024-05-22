@@ -4,23 +4,60 @@ namespace CUADC{
 
 bool TrajectoryGen::initTraj(const Eigen::MatrixXd &positions, const Eigen::Vector3d initialVel, const Eigen::Vector3d initialAcc)
 {
-    if(positions.cols() < 2)
+    // 剔除相同点
+    Eigen::Vector3d current_pt, last_pt;
+    bool sign = false;
+    std::vector<Eigen::Vector3d> tmp;
+    for(uint32_t i = 0; i < positions.cols(); i++)
+    {
+        if(!sign)
+        {
+            last_pt = positions.block<3, 1>(0, i);
+            current_pt = positions.block<3, 1>(0, i);
+            tmp.push_back(current_pt);
+            sign = true;
+        }
+        else
+        {
+            last_pt = current_pt;
+            current_pt = positions.block<3, 1>(0, i);
+            if(last_pt != current_pt)
+                tmp.push_back(current_pt);
+        }
+    }
+    // if(positions.cols() <= 1)
+    //     return false;
+    if(tmp.size() < 2)
+    { 
+        for(auto p:tmp)
+            ROS_INFO_STREAM("the tmp is " << p);
+        ROS_INFO_STREAM("position is " << positions);
         return false;
-    piece_num_ = positions.cols() - 1;
+    }
+    piece_num_ = tmp.size() - 1;
+    ROS_INFO_STREAM("the piece number is " << piece_num_);
     // 路标点
-    waypoint_.resize(3, positions.cols());
-    waypoint_ = positions;
+    waypoint_.resize(3, tmp.size());
+    for(uint32_t i = 0 ; i < tmp.size(); ++i)
+    {
+        waypoint_.block<3, 1>(0, i) = tmp.at(i);
+    }
+    ROS_INFO_STREAM("the waypoint is " << '\n' << waypoint_);
     // 计算分配时间向量
     time_.resize(piece_num_, 1);
     for(uint32_t i = 0; i < piece_num_; ++i)
     {
         double dist = (waypoint_.col(i + 1) - waypoint_.col(i)).norm();   
+        ROS_INFO_STREAM("the dist is " << dist);
         time_(i) = timeTraj(dist, vel_, acc_);
+        ROS_INFO_STREAM("the time is " << timeTraj(dist, vel_, acc_));
     }
+    ROS_INFO_STREAM("the time vector is " << '\n' << time_);
     // 飞机当前的状态
     initialPos_ = waypoint_.col(0);
     initialVel_ = initialVel;
     initialAcc_ = initialAcc;
+    ROS_INFO_STREAM("initial pos ,vel ,acc is " << initialPos_ << ", " << initialVel_ << ", " << initialAcc_);
     // 目标点的状态
     terminalPos_ = waypoint_.col(piece_num_);
     terminalVel_ = Eigen::Vector3d::Zero();
@@ -113,17 +150,42 @@ bool TrajectoryGen::minimumJerkTrajGen()
                                              0, 0, 0,
                                              0, 0, 0;
     }
+    clock_t time_stt = clock();
+    // 使用PartialPivLU进行分解
+    // std::cout << "use lu" <<std::endl;
+    // coefficientMatrix_ = M.lu().solve(b);
+    // std::cout << "Time cost = " << 1000 * (clock() - time_stt) / (double)CLOCKS_PER_SEC << "ms" << std::endl;
+
     // coefficientMatrix_ = M.inverse();
-    Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(M);
-    if(!lu_decomp.isInvertible()){
+    Eigen::PartialPivLU<Eigen::MatrixXd> plu(M);
+    coefficientMatrix_ = plu.solve(b);
+    if(hasNan(coefficientMatrix_))
+    {
         ROS_WARN("Minimum Jerk matrix is not invertible");
         return false;
     }
-    else{
-        coefficientMatrix_ = lu_decomp.inverse() * b;
+    else
+    {
+        ROS_INFO_STREAM("PLU solve : " << coefficientMatrix_);
+        ROS_INFO_STREAM("PLU Optimization time cost " << 1000 * (clock() - time_stt) / (double)CLOCKS_PER_SEC << "ms");
         return true;
     }
-    // coefficientMatrix_ = M.colPivHouseholderQr().solve(b);
+    // Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(M);
+    // if(!lu_decomp.isInvertible()){
+    //     ROS_WARN("Minimum Jerk matrix is not invertible");
+    //     // ROS_INFO_STREAM("the Matrix M is " << '\n' << M);
+    //     // ROS_INFO_STREAM("the M determinant is " << M.determinant());
+    //     // coefficientMatrix_ = plu.solve(b);
+    //     // ROS_INFO_STREAM("PLU solve : " << coefficientMatrix_);
+    //     // ROS_INFO_STREAM("PLU Optimization time cost " << 1000 * (clock() - time_stt) / (double)CLOCKS_PER_SEC << "ms");
+    //     // return true;
+    // }
+    // else{
+    //     coefficientMatrix_ = lu_decomp.inverse() * b;
+    //     ROS_INFO_STREAM("Optimization time cost " << 1000 * (clock() - time_stt) / (double)CLOCKS_PER_SEC << "ms");
+    //     return true;
+    // }
+    // coefficientMatrix_ = M.colPivHousederQholr().solve(b);
     // coefficientMatrix_ = M.partialPivLu().solve(b);
     // ROS_INFO_STREAM("time vector is " << timeAllocationVector_);
     // ROS_INFO_STREAM("time vector is " << time_);

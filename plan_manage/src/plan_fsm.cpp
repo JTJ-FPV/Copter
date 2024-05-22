@@ -22,6 +22,7 @@ void PlanFSM::Init_paramters()
     replan_jerk_trajectory_sign_ = false;
     traj_time_count_ = 0;
     traj_piece_count_ = 0;
+    yaw_ = 0;
     
     takeoff_position_.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
     takeoff_position_.type_mask = mavros_msgs::PositionTarget::IGNORE_VX | 
@@ -57,6 +58,7 @@ void PlanFSM::Init_paramters()
 void PlanFSM::Init_publisher()
 {
     aster_path_pub_ = nh_.advertise<visualization_msgs::Marker>(config.publish_replan.Publish_AstarPath, 1);
+    replan_aster_path_pub_ = nh_.advertise<visualization_msgs::Marker>(config.publish_replan.Publish_Replan_AstarPath, 1);
     rdp_path_pub_ = nh_.advertise<visualization_msgs::Marker>(config.publish_replan.Publish_RdpPath, 1);
     jerk_traj_pub_ = nh_.advertise<trajectory_msgs::Trajectory>(config.publish_replan.Publish_MinimJerkPath, 1);
     control_pub_ = nh_.advertise<mavros_msgs::PositionTarget>(config.publish_replan.Publish_Control, 1);
@@ -88,6 +90,8 @@ void PlanFSM::odom_ImuCallback(const nav_msgs::OdometryConstPtr &odom, const sen
     vehicle_q_ = q_wb;
 
     euler_angle_ = q_wb.toRotationMatrix().eulerAngles(2, 1, 0);
+    
+    // euler_angle_(0) = euler_angle_(0) + M_PI; 
 
     vel_ = q_wb * V_b;   // 将速度转换成世界坐标系下的速度
     /* 获取加速度数据 */
@@ -102,7 +106,12 @@ void PlanFSM::stateCallback(const mavros_msgs::StateConstPtr &msg)
 }
 
 void PlanFSM::targetCallback(const geometry_msgs::PoseStampedConstPtr &goal)
-{
+{   
+    if(exec_state_ != FSM_EXEC_STATE::WAIT_TARGET)
+    {
+        ROS_WARN("target has not been reached yet!!");
+        return;
+    }
     target_pt_ << goal->pose.position.x, goal->pose.position.y, goal->pose.position.z;
     start_pt_ << vehicle_pose_.position.x, vehicle_pose_.position.y, vehicle_pose_.position.z;
     if(!map.isInMap(target_pt_))
@@ -130,7 +139,7 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
     traj_piece_count_ = 0;
     traj_time_count_ = 0;
     // 前端 A* 搜索
-    astar_finder_.AstarGraphSearch(start_pt_, target_pt_, AstarHeu::EUCLIDEAN_TIEBREAKER);
+    astar_finder_.AstarGraphSearch(start_pt_, target_pt_, AstarHeu::DIALOG);
     // 获取路径
     astar_finder_.getPath(astar_path_);
     if(!astar_path_.size())
@@ -140,11 +149,19 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
         jerk_trajectory_sign_ = false; // 轨迹可视化
         return false;
     }
-    astar_finder_.rdpPath(astar_path_, 0.3, rdp_path_);
+
+    // 轨迹简化
+    astar_finder_.simplifyPath(astar_path_, rdp_path_);
+    ROS_INFO_STREAM("simplified path size is " << rdp_path_.size());
+    if(!rdp_path_.size())
+    {
+        ROS_WARN("simplified path failed using rdp simplified ...");
+        astar_finder_.rdpPath(astar_path_, 0.3, rdp_path_);
+    }
 
     if(!rdp_path_.size())
     {
-        ROS_WARN("rdp simplied path failed!");
+        ROS_WARN("rdp simplified path failed!");
         jerk_trajectory_sign_ = false; // 轨迹可视化
         return false;
     }
@@ -165,6 +182,7 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
 
     // 安全检查
     Eigen::Vector3d start_pt, end_pt;
+    // Eigen::Vector3i start_id, end_id;
     uint32_t index;
     bool safe_sign = safeCheck(trajectory_gen_, rdp_path_, start_pt, end_pt, index);
 
@@ -181,18 +199,59 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
     ROS_INFO("Check Collision!");
     // 若发生碰撞则在rdp之间插点
     Eigen::Vector3d middle_pt, last_middle_pt;
-    // Eigen::Vector3i middle_idx, last_middle_idx;
     bool middle_sign = true;
+
+    // std::vector<Eigen::Vector3d> safe_check_insert, safe_check_insert_simplify;
+    
     ros::Time safe_check_start = ros::Time::now();
     while(!safe_sign)
     {
-        if(ros::Time::now() - safe_check_start > ros::Duration(0.03))
+        // safe_check_insert.clear();
+        // safe_check_insert_simplify.clear();
+        // 是否超时
+        if(ros::Time::now() - safe_check_start > ros::Duration(0.05))
         {
-            ROS_WARN("the reoptimization time is over 30ms!");
+            ROS_WARN("safe reoptimization time is over 50ms!");
             jerk_trajectory_sign_ = false; // 轨迹可视化
             return false;
         }
 
+        // // 用于检测起点重点是否在地图中重合
+        // map.pos2Index(start_pt, start_id);
+        // map.pos2Index(end_pt, end_id);
+        // if(start_id == end_id)
+        // {
+        //     ROS_WARN("insert point between the obstacle point but still cannot finding a safe trajectory!");
+        //     return false;
+        // }
+        //  // 进行图搜索
+        // astar_finder_.AstarGraphSearch(start_pt, end_pt, AstarHeu::DIALOG);
+        // // 获得路径
+        // astar_finder_.getPath(safe_check_insert);
+        // if(!safe_check_insert.size())
+        // {
+        //     ROS_WARN("safe check intend to search a path by A* but failed!");
+        //     return false;
+        // }
+        // // 简化路径
+        // astar_finder_.simplifyPath(safe_check_insert, safe_check_insert_simplify);
+        // if(!safe_check_insert_simplify.size())
+        // {
+        //     ROS_WARN("safe check simplify path failed!");
+        //     return false;
+        // }
+        // // 将简化的路径插入到rdp_path
+        // index++;
+        // if(index >= 0 && index <= rdp_path_.size()){
+        //     rdp_path_.insert(rdp_path_.begin() + index, safe_check_insert_simplify.begin(), safe_check_insert_simplify.end());
+        // }
+        // else{
+        //     ROS_WARN("safe check insert the search path failed!");
+        //     return false;
+        // }
+
+   
+        // 若发生碰撞则在rdp之间插点
         if(middle_sign)
         {
             // middle_pt = getMiddlePoint(astar_path_, start_pt, end_pt);
@@ -214,8 +273,9 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
             //     return false;
             // }
         }
-
         rdp_path_.emplace(rdp_path_.begin() + index + 1, middle_pt);
+
+
         positions = Eigen::MatrixXd::Zero(3, rdp_path_.size());
         for(uint32_t i = 0; i < rdp_path_.size(); ++i)
         {   
@@ -239,7 +299,6 @@ bool PlanFSM::trajGeneration(const Eigen::Vector3d &vel, const Eigen::Vector3d &
 
         // 继续安全检查
         safe_sign = safeCheck(trajectory_gen_, rdp_path_, start_pt, end_pt, index);
-        // count++;
     }
     traj_time_duration_ = trajectory_gen_.TotalTime();
     time_traj_start_ = ros::Time::now();
@@ -272,7 +331,7 @@ bool PlanFSM::ReplanTrajGeneration(const Eigen::Vector3d &future_pt, const Eigen
         return false;
     }
     // 前端 A* 搜索
-    astar_finder_.AstarGraphSearch(future_pt, target_pt_, AstarHeu::EUCLIDEAN_TIEBREAKER);
+    astar_finder_.AstarGraphSearch(future_pt, target_pt_, AstarHeu::DIALOG);
     // 获取路径
     astar_finder_.getPath(astar_replan_path_);
     if(!astar_replan_path_.size())
@@ -282,12 +341,19 @@ bool PlanFSM::ReplanTrajGeneration(const Eigen::Vector3d &future_pt, const Eigen
         replan_jerk_trajectory_sign_ = false; // 轨迹可视化
         return false;
     }
+
     // 轨迹简化
-    astar_finder_.rdpPath(astar_replan_path_, 0.15, rdp_replan_path_);
+    astar_finder_.simplifyPath(astar_replan_path_, rdp_replan_path_);
+    ROS_INFO_STREAM("replan simplified path size is " << rdp_replan_path_.size());
+    if(!rdp_replan_path_.size())
+    {
+        ROS_WARN("replan simplified path failed using rdp simplified ...");
+        astar_finder_.rdpPath(astar_replan_path_, 0.15, rdp_replan_path_);
+    }
 
     if(!rdp_replan_path_.size())
     {
-        ROS_WARN("replan rdp simplied path failed!");
+        ROS_WARN("replan rdp simplified path failed!");
         replan_jerk_trajectory_sign_ = false; // 轨迹可视化
         return false;
     }
@@ -315,6 +381,7 @@ bool PlanFSM::ReplanTrajGeneration(const Eigen::Vector3d &future_pt, const Eigen
 
     // 安全检查
     Eigen::Vector3d start_pt, end_pt;
+    // Eigen::Vector3i start_id, end_id;
     uint32_t index;
     bool safe_sign = safeCheck(trajectory_replan_gen_, rdp_replan_path_, start_pt, end_pt, index);
 
@@ -334,18 +401,59 @@ bool PlanFSM::ReplanTrajGeneration(const Eigen::Vector3d &future_pt, const Eigen
     ROS_INFO("Check Collision!");
     // 若发生碰撞则在rdp之间插点
     Eigen::Vector3d middle_pt, last_middle_pt;
-    // Eigen::Vector3i middle_idx, last_middle_idx;
     bool middle_sign = true;
+
+    // std::vector<Eigen::Vector3d> safe_check_insert, safe_check_insert_simplify;
+
     ros::Time safe_check_start = ros::Time::now();
     while(!safe_sign)
     {
-        if(ros::Time::now() - safe_check_start > ros::Duration(0.1))
+        // safe_check_insert.clear();
+        // safe_check_insert_simplify.clear();
+        // 是否超时
+        if(ros::Time::now() - safe_check_start > ros::Duration(0.05))
         {
-            ROS_WARN("the reoptimization time is over 30ms!");
+            ROS_WARN("replan safe optimization time is over 50ms!");
             replan_jerk_trajectory_sign_ = false; // 轨迹可视化
             return false;
         }
 
+        // 用于检测起点重点是否在地图中重合
+        // map.pos2Index(start_pt, start_id);
+        // map.pos2Index(end_pt, end_id);
+        // if(start_id == end_id)
+        // {
+        //     ROS_WARN("replan insert point between the obstacle point but still cannot finding a safe trajectory!");
+        //     return false;
+        // }
+        // // 进行图搜索
+        // astar_finder_.AstarGraphSearch(start_pt, end_pt, AstarHeu::DIALOG);
+        // // 获得路径
+        // astar_finder_.getPath(safe_check_insert);
+        // if(!safe_check_insert.size())
+        // {
+        //     ROS_WARN("replan safe check intend to search a path by A* but failed!");
+        //     return false;
+        // }
+        // // 简化路径
+        // astar_finder_.simplifyPath(safe_check_insert, safe_check_insert_simplify);
+        // if(!safe_check_insert_simplify.size())
+        // {
+        //     ROS_WARN("replan safe check simplify path failed!");
+        //     return false;
+        // }
+        // // 将简化的路径插入到replan_rdp_path
+        // index++;
+        // if(index >= 0 && index <= rdp_replan_path_.size()){
+        //     rdp_replan_path_.insert(rdp_replan_path_.begin() + index, safe_check_insert_simplify.begin(), safe_check_insert_simplify.end());
+        // }
+        // else{
+        //     ROS_WARN("replan safe check insert the search path failed!");
+        //     return false;
+        // }
+
+        
+        // 若发生碰撞则在rdp之间插点
         if(middle_sign)
         {
             // middle_pt = getMiddlePoint(astar_replan_path_, start_pt, end_pt);
@@ -367,8 +475,9 @@ bool PlanFSM::ReplanTrajGeneration(const Eigen::Vector3d &future_pt, const Eigen
             //     return false;
             // }
         }
-
         rdp_replan_path_.emplace(rdp_replan_path_.begin() + index + 1, middle_pt);
+       
+       
         positions = Eigen::MatrixXd::Zero(3, rdp_replan_path_.size());
         for(uint32_t i = 0; i < rdp_replan_path_.size(); ++i)
         {   
@@ -520,7 +629,7 @@ void PlanFSM::publishAstarPath()
     node_vis_a.pose.orientation.x = 0.0;
     node_vis_a.pose.orientation.y = 0.0;
     node_vis_a.pose.orientation.z = 0.0;
-    node_vis_a.pose.orientation.w = 0.3;
+    node_vis_a.pose.orientation.w = 1.0;
 
     node_vis_a.color.a = 1.0;
     node_vis_a.color.r = 1.0;
@@ -543,6 +652,44 @@ void PlanFSM::publishAstarPath()
     aster_path_pub_.publish(node_vis_a);
 }
 
+void PlanFSM::publishReplanAstarPath()
+{
+    if(replan_aster_path_pub_.getNumSubscribers() <= 0)
+        return;
+    visualization_msgs::Marker node_vis_a; 
+    node_vis_a.header.frame_id = map.mp_.frame_id_;
+    node_vis_a.header.stamp = ros::Time::now();
+
+    node_vis_a.type = visualization_msgs::Marker::CUBE_LIST;  // 立方体
+    node_vis_a.action = visualization_msgs::Marker::ADD;
+    node_vis_a.id = 2;
+
+    node_vis_a.pose.orientation.x = 0.0;
+    node_vis_a.pose.orientation.y = 0.0;
+    node_vis_a.pose.orientation.z = 0.0;
+    node_vis_a.pose.orientation.w = 1.0;
+
+    node_vis_a.color.a = 1.0;
+    node_vis_a.color.r = 0.0;
+    node_vis_a.color.g = 1.0;
+    node_vis_a.color.b = 1.0;
+
+    node_vis_a.scale.x = map.mp_.resolution_;
+    node_vis_a.scale.y = map.mp_.resolution_;
+    node_vis_a.scale.z = map.mp_.resolution_;
+    
+    geometry_msgs::Point pt;
+    for(auto &p:astar_replan_path_)
+    {
+        pt.x = p.x();
+        pt.y = p.y();
+        pt.z = p.z();
+
+        node_vis_a.points.push_back(pt);
+    }
+    replan_aster_path_pub_.publish(node_vis_a);
+}
+
 void PlanFSM::publishRdpPath()
 {
     if(rdp_path_pub_.getNumSubscribers() <= 0)
@@ -558,7 +705,7 @@ void PlanFSM::publishRdpPath()
     node_vis.pose.orientation.x = 0.0;
     node_vis.pose.orientation.y = 0.0;
     node_vis.pose.orientation.z = 0.0;
-    node_vis.pose.orientation.w = 0.8;
+    node_vis.pose.orientation.w = 1.0;
 
     node_vis.color.a = 1.0;
     node_vis.color.r = 0.8;
@@ -643,6 +790,7 @@ void PlanFSM::publishTrajectory()
 void PlanFSM::visualCallback(const ros::TimerEvent &e)
 {
     publishAstarPath();
+    publishReplanAstarPath();
     publishRdpPath();
     publishTrajectory();
 }
@@ -672,8 +820,6 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
             // ROS_INFO("INIT");
             if(!has_odom_)
                 return;
-            if(!has_target_)
-                return;
             changeState(FSM_EXEC_STATE::WAIT_TARGET);
             // FSM[(uint16_t)exec_state_] = true;
             break;
@@ -685,10 +831,8 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
             {
                 if(!hover_sign_)
                 {
-                    hover_position_.position.x = vehicle_pose_.position.x;
-                    hover_position_.position.y = vehicle_pose_.position.y;
-                    hover_position_.position.z = vehicle_pose_.position.z;
-                    // hover_position_.yaw = euler_angle_[0] * 180.0 / M_PI;
+                    hover_position_.position = vehicle_pose_.position;
+                    hover_position_.yaw = yaw_;
                     hover_sign_ = true;
                     FSM[(uint16_t)exec_state_] = true;
                 }
@@ -708,14 +852,7 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
         {
             ROS_INFO("GEN_NEW_TRAJ");
             success_traj_gen_ = trajGeneration(vel_, acc_);
-            if(isnan(trajectory_gen_.coefficientMatrix_.row(0).x()))
-            {
-                ROS_WARN("No tajectory Optimaztion!");
-                has_target_ = false;
-                changeState(WAIT_TARGET);
-                return;
-            }
-            else if(success_traj_gen_)
+            if(success_traj_gen_)
             {
                 changeState(EXEC_TRAJ);
                 return;
@@ -723,7 +860,9 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
             else
             {
                 has_target_ = false;
+                hover_sign_ = false;
                 changeState(WAIT_TARGET);
+                return;
             }
             break;
         }
@@ -734,44 +873,54 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
             uint32_t piece = traj_piece_count_;
             if(piece >= trajectory_gen_.getPieceNum())
                 piece = trajectory_gen_.getPieceNum() - 1;
-            if(current + 0.05 > trajectory_gen_.getPieceTime(piece))
+            if(current + 0.02 > trajectory_gen_.getPieceTime(piece))
             {
                 current = trajectory_gen_.getPieceTime(piece);
             }
             else
-                current += 0.05;
+                current += 0.02;
             Eigen::Vector3d pos, vel, acc;
+            Eigen::Vector3i pos_idx;
             getPos(current, trajectory_gen_, piece, pos);
-            ROS_INFO_STREAM("the future point is " << '\n' << pos);
+            // map.pos2Index(pos, pos_idx);
+            // if(VoxelState::OCCUPANY == map.isOccupied(pos_idx))
+            // {
+            //     jerk_trajectory_sign_ = false;
+            //     replan_jerk_trajectory_sign_ = false;
+            //     has_target_ = false;
+            //     Eigen::Vector3d pos_last, d;
+            //     getPos(current - 0.02 - config.replan.dt, trajectory_gen_, piece, pos_last);
+            //     d = pos - pos_last;
+            //     hover_position_.position.x = pos.x();
+            //     hover_position_.position.y = pos.y();
+            //     hover_position_.position.z = pos.z();
+            //     hover_position_.yaw = atan2(d.y(), d.x());
+            //     hover_sign_ = true;
+            //     start_pt_ << vehicle_pose_.position.x, vehicle_pose_.position.y, vehicle_pose_.position.z;
+            //     ROS_INFO("Future pos is occupancied");
+            //     changeState(WAIT_TARGET);
+            //     return;
+            // }
             getVel(current, trajectory_gen_, piece, vel);
             getAcc(current, trajectory_gen_, piece, acc);
             
-            // ROS_INFO_STREAM("the ")
-            pos = _vehicle_pose_ +  0.05 * vel;
             success_traj_gen_ = ReplanTrajGeneration(pos, vel, acc);
             
-            if((_vehicle_pose_ - target_pt_).norm() <= 0.3)
-            {
-                jerk_trajectory_sign_ = false;
-                replan_jerk_trajectory_sign_ = false;
-                has_target_ = false;
-                changeState(WAIT_TARGET);
-            }
-            else if(!success_traj_gen_)
+            if(!success_traj_gen_)
             {
                 ROS_WARN("No tajectory Optimaztion!");
-                // ROS_INFO_STREAM("the replan trajectory paramters is " << '\n' << trajectory_replan_gen_.coefficientMatrix_);
                 ROS_INFO_STREAM("success_traj_gen_" << success_traj_gen_);
-                jerk_trajectory_sign_ = false;
                 replan_jerk_trajectory_sign_ = false;
-                has_target_ = false;
-                changeState(WAIT_TARGET);
+                changeState(GEN_NEW_TRAJ);
                 return;
             }
             else if(success_traj_gen_)
             {
                 start_pt_ = pos;
                 trajectory_gen_ = trajectory_replan_gen_;
+                // 控制
+                traj_piece_count_ = 0;
+                traj_time_count_ = 0;
                 changeState(EXEC_TRAJ);
                 return;
             }
@@ -779,9 +928,12 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
         }
         case FSM_EXEC_STATE::EXEC_TRAJ:
         {
-            if((_vehicle_pose_ - target_pt_).norm() <= 0.3){
+            // ROS_INFO_STREAM("distance from vehile pose to target is " << (_vehicle_pose_ - target_pt_).norm());
+            if((_vehicle_pose_ - target_pt_).norm() <= 0.2){
                 ROS_INFO_STREAM("distance from vehile pose to target is " << (_vehicle_pose_ - target_pt_).norm());
+                ROS_INFO("REACH THE TARGET");
                 has_target_ = false;
+                hover_sign_ = false;
                 changeState(FSM_EXEC_STATE::WAIT_TARGET);
                 FSM[(uint16_t)exec_state_] = false;
                 return;
@@ -791,6 +943,29 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
                 {
                     ROS_WARN("the target is occupancied!");
                     has_target_ = false;
+
+                    double current = traj_time_count_ * config.replan.dt;
+                    uint32_t piece = traj_piece_count_;
+                    if(piece >= trajectory_gen_.getPieceNum())
+                        piece = trajectory_gen_.getPieceNum() - 1;
+                    if(current + 0.1 > trajectory_gen_.getPieceTime(piece))
+                    {
+                        current = trajectory_gen_.getPieceTime(piece);
+                    }
+                    else
+                        current += 0.1;
+                        
+                    Eigen::Vector3d pos, pos_future, d;
+                    getPos(current - 0.1, trajectory_gen_, piece, pos);
+                    getPos(current, trajectory_gen_, piece, pos_future);
+                    d = pos_future - pos;
+                    hover_position_.position.x = pos_future.x();
+                    hover_position_.position.y = pos_future.y();
+                    hover_position_.position.z = pos_future.z();
+                    hover_position_.yaw = atan2(d.y(), d.x());
+                    // hover_position_.position = vehicle_pose_.position;
+                    // hover_position_.yaw = yaw_;
+                    hover_sign_ = true;
                     changeState(FSM_EXEC_STATE::WAIT_TARGET);
                     FSM[(uint16_t)exec_state_] = false;
                     return;
@@ -802,6 +977,7 @@ void PlanFSM::execCallback(const ros::TimerEvent &e)
                     FSM[(uint16_t)exec_state_] = false;
                     return;
                 }
+                return;
             } else if((target_pt_ - _vehicle_pose_).norm() < config.replan.target_replan_thresh){
                 FSM[(uint16_t)exec_state_] = true;
                 return;
@@ -860,10 +1036,9 @@ void PlanFSM::controlCallback(const ros::TimerEvent &e)
         }
         case FSM_EXEC_STATE::REPLAN_TRAJ:
         {
-            ROS_INFO("Control REPLAN_TRAJ");
             double t_delta = config.replan.dt;
             double t = t_delta * traj_time_count_;
-            if(t >= trajectory_gen_.getPieceTime(traj_piece_count_))
+            if(t > trajectory_gen_.getPieceTime(traj_piece_count_))
             {
                 traj_time_count_ = 0;
                 t = 0;
@@ -871,16 +1046,15 @@ void PlanFSM::controlCallback(const ros::TimerEvent &e)
                 if(traj_piece_count_ >= trajectory_gen_.getPieceNum())
                 {
                     traj_piece_count_ = trajectory_gen_.getPieceNum() - 1;
-                    traj_time_count_ = std::round(trajectory_gen_.getPieceTime(traj_piece_count_) / t_delta);
-                    t = t_delta * traj_time_count_;
+                    traj_time_count_ = std::ceil(trajectory_gen_.getPieceTime(traj_piece_count_) / t_delta);
+                    t = trajectory_gen_.getPieceTime(traj_piece_count_);
                 }
             }
-            else
-                t = t_delta * traj_time_count_++;
-            // ROS_INFO_STREAM("the traj_piece_count_ is " << traj_piece_count_);
-            // ROS_INFO_STREAM("the traj_time_count_ is " << traj_time_count_);
-            // ROS_INFO_STREAM("the t is " << t);
-            Eigen::Vector3d pos, vel, acc, pos_next, yaw;
+
+            ROS_INFO_STREAM("traj_time_count_ is " << traj_time_count_);
+            ROS_INFO_STREAM("traj_piece_count_ is " << traj_piece_count_);
+
+            Eigen::Vector3d pos, vel, acc, pos_next, pos_last, yaw;
 
             getPos(t, trajectory_gen_, traj_piece_count_, pos);
             getVel(t, trajectory_gen_, traj_piece_count_, vel);
@@ -899,21 +1073,38 @@ void PlanFSM::controlCallback(const ros::TimerEvent &e)
             traj_poistion_.acceleration_or_force.y = acc.y();
             traj_poistion_.acceleration_or_force.z = acc.z();
 
-            if(t_delta * traj_time_count_ < trajectory_gen_.getPieceTime(traj_piece_count_))
+            u_int32_t count = traj_time_count_;
+            if(t_delta * (count + 1) <= trajectory_gen_.getPieceTime(traj_piece_count_))
             {
-                getPos(t_delta * traj_time_count_, trajectory_gen_, traj_piece_count_, pos_next);
+                getPos(t_delta * (count + 1), trajectory_gen_, traj_piece_count_, pos_next);
                 yaw = pos_next - pos;
-                traj_poistion_.yaw = atan2f32(yaw(1), yaw(0));
+                traj_poistion_.yaw = atan2(yaw.y(), yaw.x());
+                yaw_ = traj_poistion_.yaw;
             }
+            else{
+                ROS_INFO("ELSE YAW");
+                ROS_INFO_STREAM("t - t_delta = " << t - t_delta);
+                ROS_INFO_STREAM("t = " << t);
+                double last_t = t - t_delta;
+                if(t - t_delta < 0)
+                {
+                    last_t = 0;
+                }
+                getPos(last_t, trajectory_gen_, traj_piece_count_, pos_last);
+                yaw = pos - pos_last;
+                traj_poistion_.yaw = atan2(yaw.y(), yaw.x());
+                yaw_ = traj_poistion_.yaw;
+            }
+
             control_pub_.publish(traj_poistion_);
+            traj_time_count_++;
             break;
         }
         case FSM_EXEC_STATE::EXEC_TRAJ:
         {
-            // ROS_INFO("Control EXEC_TRAJ");
             double t_delta = config.replan.dt;
             double t = t_delta * traj_time_count_;
-            if(t >= trajectory_gen_.getPieceTime(traj_piece_count_))
+            if(t > trajectory_gen_.getPieceTime(traj_piece_count_))
             {
                 traj_time_count_ = 0;
                 t = 0;
@@ -921,17 +1112,15 @@ void PlanFSM::controlCallback(const ros::TimerEvent &e)
                 if(traj_piece_count_ >= trajectory_gen_.getPieceNum())
                 {
                     traj_piece_count_ = trajectory_gen_.getPieceNum() - 1;
-                    traj_time_count_ = std::round(trajectory_gen_.getPieceTime(traj_piece_count_) / t_delta);
+                    traj_time_count_ = std::ceil(trajectory_gen_.getPieceTime(traj_piece_count_) / t_delta);
                     t = trajectory_gen_.getPieceTime(traj_piece_count_);
                 }
             }
-            else
-                t = t_delta * traj_time_count_++;
-            // ROS_INFO_STREAM("the piece number is " << trajectory_gen_.getPieceNum());
-            // ROS_INFO_STREAM("the traj_piece_count_ is " << traj_piece_count_);
-            // ROS_INFO_STREAM("the traj_time_count_ is " << traj_time_count_);
-            // ROS_INFO_STREAM("the t is " << t);
-            Eigen::Vector3d pos, vel, acc, pos_next, yaw;
+
+            ROS_INFO_STREAM("traj_time_count_ is " << traj_time_count_);
+            ROS_INFO_STREAM("traj_piece_count_ is " << traj_piece_count_);
+
+            Eigen::Vector3d pos, vel, acc, pos_next, pos_last, yaw;
 
             getPos(t, trajectory_gen_, traj_piece_count_, pos);
             getVel(t, trajectory_gen_, traj_piece_count_, vel);
@@ -950,17 +1139,30 @@ void PlanFSM::controlCallback(const ros::TimerEvent &e)
             traj_poistion_.acceleration_or_force.y = acc.y();
             traj_poistion_.acceleration_or_force.z = acc.z();
 
-            if(t_delta * traj_time_count_ <= trajectory_gen_.getPieceTime(traj_piece_count_))
+            u_int32_t count = traj_time_count_;
+            if(t_delta * (count + 1) <= trajectory_gen_.getPieceTime(traj_piece_count_))
             {
-                getPos(t_delta * traj_time_count_, trajectory_gen_, traj_piece_count_, pos_next);
+                getPos(t_delta * (count + 1), trajectory_gen_, traj_piece_count_, pos_next);
                 yaw = pos_next - pos;
-                traj_poistion_.yaw = atan2f32(yaw(1), yaw(0));
+                traj_poistion_.yaw = atan2(yaw.y(), yaw.x());
+                yaw_ = traj_poistion_.yaw;
             }
-            else
-                traj_poistion_.yaw = euler_angle_[0] * 180.0 / M_PI;
-            hover_position_.yaw = traj_poistion_.yaw;
-            // ROS_INFO_STREAM("the control point is " << '\n' << pos);
+            else{
+                ROS_INFO_STREAM("t - t_delta = " << t - t_delta);
+                ROS_INFO_STREAM("t = " << t);
+                double last_t = t - t_delta;
+                if(t - t_delta < 0)
+                {
+                    last_t = 0;
+                }
+                getPos(last_t, trajectory_gen_, traj_piece_count_, pos_last);
+                yaw = pos - pos_last;
+                traj_poistion_.yaw = atan2(yaw.y(), yaw.x());
+                yaw_ = traj_poistion_.yaw;
+            }
+
             control_pub_.publish(traj_poistion_);
+            traj_time_count_++;
             break;
         }
     }
